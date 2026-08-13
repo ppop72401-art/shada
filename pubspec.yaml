@@ -1,0 +1,16 @@
+name: ultimate_card_games_hub
+description: 10-in-1 Local Hotspot Card Games
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/index.html
