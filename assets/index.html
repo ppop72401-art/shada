@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ultimate Card Games Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0d; --surface: #1a1a1a;
+            --accent: #ffffff; --accent-dark: #cccccc;
+            --red-suit: #ff3333; --black-suit: #222222;
+            --font: 'Tajawal', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font); user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--accent); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+        .btn-core {
+            background: var(--surface); color: var(--accent); font-size: 1.2rem; font-weight: 900;
+            padding: 15px 30px; border-radius: 8px; border: 2px solid var(--accent); cursor: pointer;
+            transition: transform 0.1s, background 0.2s; width: 100%; margin-bottom: 15px; text-transform: uppercase;
+        }
+        .btn-core:active { transform: scale(0.95); background: var(--accent); color: var(--bg); }
+        .btn-core.highlight { background: var(--accent); color: var(--bg); }
+
+        input, select {
+            width: 100%; padding: 15px; border-radius: 8px; font-size: 1.2rem; font-weight: bold;
+            border: 2px solid var(--surface); background: var(--bg); color: var(--accent); margin-bottom: 20px; text-align: center;
+        }
+
+        .screen { display: none; flex-direction: column; height: 100%; width: 100%; position: absolute; top: 0; left: 0; }
+        .screen.active { display: flex; }
+        .center-box { margin: auto; background: var(--surface); padding: 30px; border-radius: 12px; width: 90%; max-width: 450px; text-align: center; border: 1px solid #333; }
+
+        /* البطاقات الكلاسيكية */
+        .playing-card {
+            width: 80px; height: 120px; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; padding: 8px;
+            font-size: 1.8rem; font-weight: 900; cursor: pointer; background: #fff;
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1); position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid #ddd;
+        }
+        .playing-card:hover { transform: translateY(-15px); z-index: 10; }
+        .playing-card.red { color: var(--red-suit); }
+        .playing-card.black { color: var(--black-suit); }
+        
+        .card-top { align-self: flex-start; line-height: 1; }
+        .card-center { align-self: center; font-size: 2.5rem; }
+        .card-bottom { align-self: flex-end; transform: rotate(180deg); line-height: 1; }
+
+        /* طاولة اللعب */
+        .hud { display: flex; justify-content: space-between; padding: 15px; background: var(--surface); border-bottom: 1px solid #333; font-weight: bold; font-size: 1.2rem; }
+        .opponents-ring { display: flex; justify-content: center; gap: 15px; padding: 15px; }
+        .opp-avatar { background: var(--bg); padding: 10px 20px; border-radius: 8px; border: 1px solid #444; text-align: center; font-weight: bold; transition: 0.3s; }
+        .opp-avatar.active { border-color: var(--accent); background: #333; }
+
+        .table-area { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; padding: 20px; }
+        .center-pile { width: 100%; max-width: 400px; height: 200px; border: 2px dashed #444; border-radius: 12px; display: flex; justify-content: center; align-items: center; position: relative; }
+        .center-pile .playing-card { position: absolute; }
+
+        .hand-container { height: 140px; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 20px; overflow-x: auto; }
+        .hand-container .playing-card { margin: 0 -20px; }
+
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: var(--bg); padding: 15px 30px; border-radius: 8px; font-weight: bold; font-size: 1.1rem; z-index: 1000; display: none; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+    <div id="toast">رسالة النظام</div>
+
+    <!-- شاشة الدخول واختيار اللعبة -->
+    <div id="screen-login" class="screen active">
+        <div class="center-box">
+            <h1 style="font-size: 3rem; color: var(--accent); margin-bottom: 20px; letter-spacing: 1px;">طاولة الورق</h1>
+            <input type="text" id="playerName" placeholder="اسم اللاعب..." maxlength="10">
+            
+            <div id="host-options" style="margin-bottom: 20px;">
+                <select id="gameSelect">
+                    <option value="tarneeb">طرنيب (Tarneeb)</option>
+                    <option value="trex">تريكس (Trex)</option>
+                    <option value="trex_complex">تريكس كمبلكس</option>
+                    <option value="likha">ليخة (Likha)</option>
+                    <option value="hand">هاند (Hand)</option>
+                    <option value="baloot">بلوت (Baloot)</option>
+                    <option value="spades">سبيدز (Spades)</option>
+                    <option value="hearts">هارتس (Hearts)</option>
+                    <option value="rummy">رامي (Rummy)</option>
+                    <option value="poker">بوكر (Poker)</option>
+                </select>
+                <button class="btn-core highlight" onclick="initNetwork(true)">إنشاء الطاولة (مضيف)</button>
+            </div>
+            <button class="btn-core" onclick="initNetwork(false)">الجلوس على الطاولة (انضمام)</button>
+        </div>
+    </div>
+
+    <!-- شاشة الانتظار -->
+    <div id="screen-lobby" class="screen">
+        <div class="center-box">
+            <h2 style="margin-bottom: 20px; color: var(--accent);" id="lobby-game-title">غرفة الانتظار</h2>
+            <div id="lobby-players" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
+            <button id="btn-start-game" class="btn-core highlight" style="display: none;" onclick="startGame()">توزيع الورق</button>
+            <p id="wait-msg" style="color: #888; font-weight: bold;">بانتظار المضيف لتوزيع الـ 52 ورقة...</p>
+        </div>
+    </div>
+
+    <!-- شاشة اللعب -->
+    <div id="screen-game" class="screen">
+        <div class="hud">
+            <span id="hud-turn">الدور: -</span>
+            <button style="background:transparent; border:1px solid #fff; color:#fff; padding:5px 15px; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="clearTable()">لم الورق</button>
+        </div>
+        
+        <div class="opponents-ring" id="opponents-ring"></div>
+
+        <div class="table-area">
+            <div class="center-pile" id="table-pile">
+                <!-- الأوراق الملعوبة تظهر هنا -->
+            </div>
+        </div>
+
+        <div class="hand-container" id="my-hand"></div>
+    </div>
+
+    <script>
+        let ws;
+        let myId = Math.random().toString(36).substr(2, 9);
+        let myName = "";
+        let isHost = false;
+        
+        const SUITS = [{s:'♥', c:'red'}, {s:'♦', c:'red'}, {s:'♣', c:'black'}, {s:'♠', c:'black'}];
+        const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+
+        let gameState = {
+            status: 'waiting', gameType: '', players: [], 
+            tableCards: [], turnIdx: 0, starterIdx: 0
+        };
+
+        function showToast(msg) {
+            let t = document.getElementById('toast');
+            t.innerText = msg; t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        function switchScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function initNetwork(asHost) {
+            let nameInput = document.getElementById('playerName').value.trim();
+            if(!nameInput) return showToast("أدخل اسمك أولاً!");
+            
+            myName = nameInput; isHost = asHost;
+            let selectedGame = document.getElementById('gameSelect');
+            
+            if(isHost) {
+                document.getElementById('btn-start-game').style.display = 'block';
+                document.getElementById('wait-msg').style.display = 'none';
+                gameState.gameType = selectedGame.options[selectedGame.selectedIndex].text;
+                gameState.players.push({ id: myId, name: myName, hand: [] });
+            }
+
+            ws = new WebSocket(`ws://${location.host}/ws`);
+            
+            ws.onopen = () => {
+                switchScreen('screen-lobby');
+                ws.send(JSON.stringify({ type: 'join', id: myId, name: myName }));
+                if(isHost) {
+                    document.getElementById('lobby-game-title').innerText = `طاولة: ${gameState.gameType}`;
+                    renderLobby();
+                }
+            };
+
+            ws.onmessage = (e) => {
+                let data = JSON.parse(e.data);
+                
+                if (isHost && data.type === 'join' && data.id !== myId) {
+                    gameState.players.push({ id: data.id, name: data.name, hand: [] });
+                    broadcastState();
+                } else if (isHost && data.type === 'action') {
+                    processAction(data.actionData);
+                } else if (data.type === 'state_update') {
+                    gameState = data.state;
+                    if(gameState.status === 'waiting') {
+                        document.getElementById('lobby-game-title').innerText = `طاولة: ${gameState.gameType}`;
+                        renderLobby();
+                    } else if (gameState.status === 'playing') {
+                        renderGame();
+                    }
+                }
+            };
+        }
+
+        function broadcastState() {
+            if(!isHost) return;
+            ws.send(JSON.stringify({ type: 'state_update', state: gameState }));
+            if(gameState.status === 'waiting') renderLobby();
+            else renderGame();
+        }
+
+        function renderLobby() {
+            let html = '';
+            gameState.players.forEach(p => { html += `<div style="background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid #444;">🃏 ${p.name}</div>`; });
+            document.getElementById('lobby-players').innerHTML = html;
+        }
+
+        // ==========================================
+        // محرك الـ 52 ورقة (Universal 52-Card Engine)
+        // ==========================================
+        function startGame() {
+            let pCount = gameState.players.length;
+            if(pCount < 2) return showToast("بانتظار بقية اللاعبين...");
+
+            // توليد الـ 52 ورقة حصراً
+            let deck = [];
+            SUITS.forEach(suit => {
+                RANKS.forEach(rank => {
+                    deck.push({ id: rank+suit.s, rank: rank, suit: suit.s, color: suit.c });
+                });
+            });
+            deck = deck.sort(() => Math.random() - 0.5);
+
+            // توزيع الأوراق حسب عدد اللاعبين بالتساوي
+            gameState.players.forEach(p => p.hand = []);
+            let pIdx = 0;
+            while(deck.length > 0) {
+                gameState.players[pIdx].hand.push(deck.pop());
+                pIdx = (pIdx + 1) % pCount;
+            }
+
+            // ترتيب الورق في يد كل لاعب حسب النوع والقيمة لسهولة اللعب
+            gameState.players.forEach(p => {
+                p.hand.sort((a, b) => {
+                    if(a.suit === b.suit) return RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank);
+                    return SUITS.findIndex(s=>s.s===a.suit) - SUITS.findIndex(s=>s.s===b.suit);
+                });
+            });
+
+            gameState.status = 'playing';
+            gameState.turnIdx = 0;
+            gameState.tableCards = [];
+            broadcastState();
+        }
+
+        function processAction(act) {
+            let activeP = gameState.players[gameState.turnIdx];
+
+            if(act.type === 'play_card') {
+                if(act.playerId !== activeP.id) return; // حماية الدور
+                
+                let p = gameState.players.find(pl => pl.id === act.playerId);
+                let cIdx = p.hand.findIndex(c => c.id === act.cardId);
+                let card = p.hand[cIdx];
+
+                p.hand.splice(cIdx, 1);
+                gameState.tableCards.push({ card: card, playedBy: p.name });
+                
+                gameState.turnIdx = (gameState.turnIdx + 1) % gameState.players.length;
+            } 
+            else if (act.type === 'clear_table') {
+                gameState.tableCards = [];
+            }
+            broadcastState();
+        }
+
+        function sendAction(data) {
+            if(isHost) processAction(data);
+            else ws.send(JSON.stringify({ type: 'action', actionData: data }));
+        }
+
+        function clearTable() {
+            sendAction({ type: 'clear_table' });
+        }
+
+        // ==========================================
+        // التقديم البصري (Render)
+        // ==========================================
+        function renderGame() {
+            switchScreen('screen-game');
+            let me = gameState.players.find(p => p.id === myId);
+            let activePlayer = gameState.players[gameState.turnIdx];
+
+            document.getElementById('hud-turn').innerText = `الدور: ${activePlayer.name}`;
+
+            // الخصوم
+            let oppHtml = '';
+            gameState.players.forEach(p => {
+                if(p.id !== myId) {
+                    let isActive = p.id === activePlayer.id ? 'active' : '';
+                    oppHtml += `<div class="opp-avatar ${isActive}">${p.name}<br><span style="font-size:0.9rem; color:#888;">${p.hand.length} أوراق</span></div>`;
+                }
+            });
+            document.getElementById('opponents-ring').innerHTML = oppHtml;
+
+            // أوراق الطاولة (الوسط)
+            let tableHtml = '';
+            gameState.tableCards.forEach((tc, idx) => {
+                let rot = (idx * 15) - 20; // شكل دائري بسيط للورق الملعوب
+                tableHtml += `
+                    <div class="playing-card ${tc.card.color}" style="transform: rotate(${rot}deg); z-index:${idx};">
+                        <div class="card-top">${tc.card.rank}${tc.card.suit}</div>
+                        <div class="card-center">${tc.card.suit}</div>
+                        <div class="card-bottom">${tc.card.rank}${tc.card.suit}</div>
+                    </div>`;
+            });
+            document.getElementById('table-pile').innerHTML = tableHtml;
+
+            // أوراقي
+            let handHtml = '';
+            me.hand.forEach((c, idx) => {
+                handHtml += `
+                    <div class="playing-card ${c.color}" style="z-index:${idx}" onclick="playMyCard('${c.id}')">
+                        <div class="card-top">${c.rank}${c.suit}</div>
+                        <div class="card-center">${c.suit}</div>
+                        <div class="card-bottom">${c.rank}${c.suit}</div>
+                    </div>`;
+            });
+            document.getElementById('my-hand').innerHTML = handHtml;
+        }
+
+        function playMyCard(cardId) {
+            let isMyTurn = (gameState.players[gameState.turnIdx].id === myId);
+            if(!isMyTurn) return showToast("ليس دورك!");
+            sendAction({ type: 'play_card', playerId: myId, cardId: cardId });
+        }
+    </script>
+</body>
+</html>
